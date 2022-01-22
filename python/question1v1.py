@@ -127,11 +127,11 @@ class Question1Version1:
         npy_dir = self.BASE_DIR
         np.save(
             npy_dir + 'input_test_data.npy',
-            self.x_test
+            np.array(self.x_test, dtype=np.float32)
         )
         np.save(
             npy_dir + 'input_test_label.npy',
-            self.y_test
+            np.array(self.y_test, dtype=np.float32)
         )
 
     def run_inference(self, batch_size, export_intermediate_tensors=False):

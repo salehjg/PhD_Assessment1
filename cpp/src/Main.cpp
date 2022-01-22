@@ -17,6 +17,11 @@ int main(int argc, const char* argv[]) {
   SetupModules(argc, argv);
 
   classifier = new CClassifier(globalArgDataPath, globalBatchsize, globalDumpTensors);
+
+  if(classifier->Prepare()!=0){
+    SPDLOG_LOGGER_ERROR(logger, "Failed to pass the preparation phase.");
+  }
+
   SPDLOG_LOGGER_TRACE(logger, "The forward pass has finished.");
   delete(classifier);
   SPDLOG_LOGGER_TRACE(logger, "Closing.");
