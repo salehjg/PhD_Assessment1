@@ -1,0 +1,6 @@
+[submodule "cpp/submodules/argparse"]
+	path = cpp/submodules/argparse
+	url = https://github.com/jamolnng/argparse.git
+[submodule "cpp/submodules/spdlog"]
+	path = cpp/submodules/spdlog
+	url = https://github.com/gabime/spdlog.git
