@@ -9,7 +9,10 @@ include_directories(
 )
 
 add_executable(Inference
-        src/Inference.cpp
-        src/GlobalHelpers.cpp)
+        src/Main.cpp
+        src/GlobalHelpers.cpp
+        src/cnpy.cpp
+        src/CClassifier.cpp
+        src/CTensorBase.cpp)
 target_link_libraries(Inference PRIVATE z stdc++fs spdlog)
 add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/spdlog)

@@ -10,9 +10,10 @@
 #include <unistd.h>
 #include <csignal>
 #include "spdlog/spdlog.h"
+#include "CStringFormatter.h"
 
 extern spdlog::logger *logger;
-extern string globalArgDataPath;
+extern std::string globalArgDataPath;
 extern unsigned globalBatchsize;
 extern bool globalDumpTensors;
 

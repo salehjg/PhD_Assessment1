@@ -2,14 +2,14 @@
 // Created by saleh on 1/22/22.
 //
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#include <memory>
+#include "GlobalHelpers.h"
 #include "argparse.h"
+#include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/spdlog.h"
-#include "GlobalHelpers.h"
 
 using namespace std;
-using namespace argparse;
 
 spdlog::logger *logger;
 string globalArgDataPath;
@@ -46,40 +46,32 @@ void SetupModules(int argc, const char* argv[]){
   signal(SIGABRT, Handler);
   signal(SIGINT, HandlerInt);
 
-  ArgumentParser parser(argv[0], "Inference");
+  ArgumentParser parser("Inference");
 
-  parser.add_argument()
-      .names({"-d", "--data"})
-      .description("Dump directory")
-      .required(true);
+  parser.add_argument("-d", "--data", "Dump directory", true);
+  parser.add_argument("-b", "--batchsize", "Batch-size", false);
+  parser.add_argument(
+      "-k",
+      "--dumptensors",
+      "Dump tensors into *.npy files in the dump directory "
+      "(no value is needed for this argument)",
+      false
+      );
+  parser.add_argument(
+      "-n",
+      "--nolog",
+      "Disable logging (no value is needed for this argument)",
+      false
+      );
 
-  parser.add_argument()
-      .names({"-b", "--batchsize"})
-      .description("Batch-size")
-      .required(false);
-
-  parser.add_argument()
-      .names({"-k", "--dumptensors"})
-      .description("Dump tensors into *.npy files in the dump directory (no value is needed for this argument)")
-      .required(false);
-
-  parser.add_argument()
-      .names({"-n", "--nolog"})
-      .description("Disable logging (no value is needed for this argument)")
-      .required(false);
-
-  parser.enable_help();
-  auto err = parser.parse(argc, argv);
-  if(err){
-    std::cerr << err << std::endl;
-    parser.print_help();
+  try {
+    parser.parse(argc, argv);
+  } catch (const ArgumentParser::ArgumentNotFound& ex) {
+    std::cout << ex.what() << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  if(parser.exists("help")){
-    parser.print_help();
-    exit(EXIT_SUCCESS);
-  }
+  if (parser.is_help()) exit(EXIT_SUCCESS);
 
   {
     // HOST LOGGER
