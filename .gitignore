@@ -1,0 +1,7 @@
+.idea
+dumps/inference_outputs
+dumps/input_test_data.npy
+dumps/input_test_label.npy
+dumps/weights/numpy_npy/
+PhdCandidatesAssessment.pdf
+
