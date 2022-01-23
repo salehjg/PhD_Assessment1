@@ -4,12 +4,22 @@
 
 #include "CClassifier.h"
 
+/**
+ * Constructor, it does not do any preparation, please use Prepare().
+ * @param dataDir Path to the dump directory of the repository with the trailing `/`
+ * @param batchSize Batch-size of the inference run
+ * @param dumpTensors true: dump tensors, false: dont dump any tensors
+ */
 CClassifier::CClassifier(string &dataDir, int batchSize, bool dumpTensors) {
   m_strDataDir = dataDir + "/";
   m_iBatchSize = batchSize;
   m_bDumpTensors = dumpTensors;
 }
 
+/**
+ * Pre-loads the weights.
+ * @return 0 on success
+ */
 int CClassifier::PreloadWeights() {
   try {
     vector<string> vecPath;
@@ -37,6 +47,10 @@ int CClassifier::PreloadWeights() {
   }
 }
 
+/**
+ * Pre-loads the biases.
+ * @return 0 on success
+ */
 int CClassifier::PreloadBiases() {
   try{
     vector<string> vecPath;
@@ -64,6 +78,10 @@ int CClassifier::PreloadBiases() {
   }
 }
 
+/**
+ * Pre-loads the dataset along with the confirmation tensor.
+ * @return 0 on success
+ */
 int CClassifier::PreloadTestSet() {
   try{
     vector<string> vecPath;
@@ -101,6 +119,10 @@ int CClassifier::PreloadTestSet() {
   }
 }
 
+/**
+ * Pre-loads the weights, the biases, the confirmation tensor, and the dataset.
+ * @return 0 on success
+ */
 int CClassifier::PreloadAll() {
   int retVal = 0;
   retVal += PreloadWeights();
@@ -109,6 +131,11 @@ int CClassifier::PreloadAll() {
   return retVal;
 }
 
+/**
+ * Checks the content of the loaded tensor with a known pattern to make sure
+ * that everything is working as they should.
+ * @return true on success
+ */
 bool CClassifier::CheckValidityOfNumpyData() {
   auto shape = m_oConfirmation->GetShape();
   float *ptrBuff = m_oConfirmation->Get();
@@ -122,6 +149,11 @@ bool CClassifier::CheckValidityOfNumpyData() {
   return true;
 }
 
+/**
+ * Prepares the classifier (loads the necessary weights, biases, and dataset;
+ *                                          along with doing some sanity checks)
+ * @return returns 0 on success
+ */
 int CClassifier::Prepare() {
   if(PreloadAll()!=0) return 1;
   if(!CheckValidityOfNumpyData()) return 2;
