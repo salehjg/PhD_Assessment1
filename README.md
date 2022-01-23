@@ -47,6 +47,7 @@ cd <GIT REPO DIR>
 cd cpp
 mkdir build
 cd build
+scl enable devtoolset-7 bash #Only if you are using CentOS-7 
 cmake ..
 make -j8
 ./Inference -d <GIT REPO DIR>/dumps -k
