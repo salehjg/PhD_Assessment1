@@ -56,6 +56,9 @@ class Question1Version1:
         model.summary()
         return model
 
+    def load_trained_model(self):
+        self.model.load_weights(self.BASE_W_DIR + self.KERAS_W_DIR + self.KERAS_W_FNAME)
+
     def train(self, batch_size, epochs):
         self.model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
         self.model.fit(self.x_train, self.y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
@@ -137,11 +140,12 @@ class Question1Version1:
     def run_inference(self, batch_size, export_intermediate_tensors=False):
         method1_results = self.model.predict(self.x_test[0:batch_size, :, :, :], batch_size=batch_size)
 
+
+
         if export_intermediate_tensors:
             inp = self.model.input  # input placeholder
             out = [layer.output for layer in self.model.layers]  # all layer outputs
             get_outputs = K.function([inp, K.learning_phase()], out)
-
             layer_outs = get_outputs([self.x_test[0:batch_size, :, :, :], 1.])
 
             if np.sum(method1_results - layer_outs[-1]) > 1e-4:
@@ -167,6 +171,9 @@ if __name__ == "__main__":
             q1.test()
         else:
             if sys.argv[1] == '-e':  # export all
+                # load the trained model from disk
+                q1.load_trained_model()
+
                 # export the input tensors of the test-set (data and label).
                 q1.export_input_data(target_batchsize)
 

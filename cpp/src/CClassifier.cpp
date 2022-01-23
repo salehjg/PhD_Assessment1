@@ -141,7 +141,7 @@ bool CClassifier::CheckValidityOfNumpyData() {
   float *ptrBuff = m_oConfirmation->Get();
   if(shape.size()!=1) return false;
   if(shape[0]!=1234) return false;
-  for(unsigned i=0; i<shape[1]; i++){
+  for(unsigned i=0; i<shape[0]; i++){
     if((float)i != ptrBuff[i]){
       return false;
     }
@@ -265,32 +265,41 @@ CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
       for (int o=0; o<Cout; o++) { // Cout
         for (int h = boundStartH; h < boundEndH; h++) { // H
           for (int w = boundStartW; w < boundEndW; w++) { // W
+
+            float sum = 0;
+            // ---------------------
             for (int c = 0; c < Cin; c++) { // Cin
-
-              float sum = 0;
-              // ---------------------
-
               for (unsigned j = 0; (j < R); j++) { // R
                 for (unsigned i = 0; (i < S); i++) { // S
 
-                  size_t indexI = b * H * W * Cin + (h + j) * W * Cin + (w + i) * Cin + c;
-                  size_t indexW = (j) * S * Cin * Cout + (i) * Cin * Cout + c * Cout + o;
+                  size_t indexI =
+                      b * H * W * Cin +
+                      (h + j) * W * Cin +
+                      (w + i) * Cin +
+                      c;
+
+                  size_t indexW =
+                      (j) * S * Cin * Cout +
+                      (i) * Cin * Cout +
+                      c * Cout +
+                      o;
 
                   float valI;
-                  if((h+j>=0 && h+j<H)&&(w+i>=0 && w+i<W)){valI = tnI[indexI];}else{valI = 0;}
+                  if((h+j>=0 && h+j<H)&&(w+i>=0 && w+i<W)){
+                    valI = tnI[indexI];
+                  }else{
+                    valI = 0;
+                  }
 
                   sum += valI * tnW[indexW];
                 }
               }
-
-              size_t indexO = b*Hout*Wout*Cout + (h+padStartH)*Wout*Cout + (w+padStartW)*Cout + o;
-              float activated = sum + tnB[o];
-              if(activated<0) activated = 0;
-              tnO[indexO] = activated;
-
-              // ---------------------
-
             }
+            // ---------------------
+            size_t indexO = b*Hout*Wout*Cout + (h+padStartH)*Wout*Cout + (w+padStartW)*Cout + o;
+            float activated = sum + tnB[o];
+            if(activated<0) activated = 0;
+            tnO[indexO] = activated;
           }
         }
       }
