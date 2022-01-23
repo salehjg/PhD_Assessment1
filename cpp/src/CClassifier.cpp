@@ -355,6 +355,10 @@ void CClassifier::Inference() {
   auto dense1 = LayerDense(flatten, m_vWeights[4], m_vBiases[4]);
   auto denseRelu1 = LayerReLU(dense1);
   DumpTensor(denseRelu1, "7.output.tensor.npy");
+
+  auto dense2 = LayerDense(denseRelu1, m_vWeights[5], m_vBiases[5]);
+  auto denseSoftMax2 = LayerSoftMax(dense2);
+  DumpTensor(denseSoftMax2, "8.output.tensor.npy");
 }
 
 /**
@@ -504,6 +508,44 @@ CTensorPtr<float> CClassifier::LayerReLU(CTensorPtr<float> inputTn) {
   for(size_t i=0;i<len;i++){
     tnO[i] = (tnI[i]>0) ? tnI[i] : 0;
   }
+  return outputTn;
+}
+
+/**
+ * Implements `SoftMax`
+ * @param inputTn The input tensor of rank 2 in BxClassCount format.
+ * @return The output tensor BxClassCount
+ */
+CTensorPtr<float> CClassifier::LayerSoftMax(CTensorPtr<float> inputTn) {
+  ConditionCheck(inputTn->GetRank()==2, "The input tensor must be of rank 2. The first axis is for the batch.")
+
+  CTensorPtr<float> outputTn(new CTensor<float>(inputTn->GetShape()));
+
+  const auto shapeI = inputTn->GetShape();
+  const float* tnI = inputTn->Get();
+  float* tnO = outputTn->Get();
+
+  unsigned B, C;
+  B = shapeI[0];
+  C = shapeI[1];
+
+  for(unsigned b=0; b<B; b++){
+    float maxVal = -1 * std::numeric_limits<float>::infinity();
+    for(unsigned c=0; c<C; c++){
+      if(tnI[b*C+c] > maxVal){
+        maxVal = tnI[b*C+c];
+      }
+    }
+    float sum = 0;
+    for(unsigned c=0; c<C; c++){
+      sum += exp(tnI[b*C+c] - maxVal);
+    }
+
+    for(unsigned c=0; c<C; c++){
+      tnO[b*C+c] = exp(tnI[b*C+c]-maxVal) / sum;
+    }
+  }
+
   return outputTn;
 }
 

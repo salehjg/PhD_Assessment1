@@ -27,7 +27,7 @@ class CClassifier {
   CTensorPtr<float> LayerFlatten(CTensorPtr<float> inputTn);
   CTensorPtr<float> LayerDense(CTensorPtr<float> inputTn, CTensorPtr<float> weightTn, CTensorPtr<float> biasTn);
   CTensorPtr<float> LayerReLU(CTensorPtr<float> inputTn);
-  CTensorPtr<float> LayerMatMul(CTensorPtr<float> inputTn1, CTensorPtr<float> inputTn2);
+  CTensorPtr<float> LayerSoftMax(CTensorPtr<float> inputTn);
 
   void DumpTensor(CTensorPtr<float> inputTn, string nameTag);
   void DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag);
