@@ -161,6 +161,77 @@ int CClassifier::Prepare() {
 }
 
 /**
+ * Dumps a tensor of type `float`
+ * @param inputTn
+ * @param nameTag The name of the `.npy` file to be saved at `globalArgDataPath/inference_outputs_cpp/`.
+ */
+void CClassifier::DumpTensor(CTensorPtr<float> inputTn, string nameTag) {
+  if(m_bDumpTensors){
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<float>(nameTag, inputTn, path);
+  }
+}
+
+/**
+ * Dumps a tensor of type `unsigned`
+ * @param inputTn
+ * @param nameTag The name of the `.npy` file to be saved at `globalArgDataPath/inference_outputs_cpp/`.
+ */
+void CClassifier::DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag) {
+  if(m_bDumpTensors) {
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<unsigned>(nameTag, inputTn, path);
+  }
+}
+
+/**
+ * Dumps a tensor of type `int`
+ * @param inputTn
+ * @param nameTag The name of the `.npy` file to be saved at `globalArgDataPath/inference_outputs_cpp/`.
+ */
+void CClassifier::DumpTensor(CTensorPtr<int> inputTn, string nameTag) {
+  if(m_bDumpTensors) {
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<int>(nameTag, inputTn, path);
+  }
+}
+
+/**
+ * Implements the inference run of the model, returns nothing.
+ * Enable tensor dumps to save the output of each layer.
+ */
+void CClassifier::Inference() {
+  auto conv1 = LayerConv2D(m_oTestSetData, m_vWeights[0], m_vBiases[0], false);
+  DumpTensor(conv1, "0.output.tensor.npy");
+
+  auto conv2 = LayerConv2D(conv1, m_vWeights[1], m_vBiases[1], true);
+  DumpTensor(conv2, "1.output.tensor.npy");
+
+  auto pool1 = LayerMaxPool2D(conv2, {2, 2});
+  DumpTensor(pool1, "2.output.tensor.npy");
+
+  auto conv3 = LayerConv2D(pool1, m_vWeights[2], m_vBiases[2], false);
+  DumpTensor(conv3, "3.output.tensor.npy");
+
+  auto conv4 = LayerConv2D(conv3, m_vWeights[3], m_vBiases[3], true);
+  DumpTensor(conv4, "4.output.tensor.npy");
+
+  auto pool2 = LayerMaxPool2D(conv4, {2, 2});
+  DumpTensor(pool2, "5.output.tensor.npy");
+
+  auto flatten = LayerFlatten(pool2);
+  DumpTensor(flatten, "6.output.tensor.npy");
+
+  auto dense1 = LayerDense(flatten, m_vWeights[4], m_vBiases[4]);
+  auto denseRelu1 = LayerReLU(dense1);
+  DumpTensor(denseRelu1, "7.output.tensor.npy");
+
+  auto dense2 = LayerDense(denseRelu1, m_vWeights[5], m_vBiases[5]);
+  auto denseSoftMax2 = LayerSoftMax(dense2);
+  DumpTensor(denseSoftMax2, "8.output.tensor.npy");
+}
+
+/**
  * Performs Conv2D operation with valid or same padding, fixed stride of 1, and in NHWC format.
  * This kernel implements the trailing activation (forced relu).
  *
@@ -171,9 +242,9 @@ int CClassifier::Prepare() {
  * @return resulted tensor
  */
 CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
-                                            CTensorPtr<float> weightTn,
-                                            CTensorPtr<float> biasTn,
-                                            bool isValidPadding) {
+                                           CTensorPtr<float> weightTn,
+                                           CTensorPtr<float> biasTn,
+                                           bool isValidPadding) {
   CTensorPtr<float> outputTn;
   const auto shapeI = inputTn->GetShape(); // N,H,W,Cin
   const auto shapeW = weightTn->GetShape(); // R,S,Cin,Cout
@@ -272,15 +343,15 @@ CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
 
                   size_t indexI =
                       b * H * W * Cin +
-                      (h + j) * W * Cin +
-                      (w + i) * Cin +
-                      c;
+                          (h + j) * W * Cin +
+                          (w + i) * Cin +
+                          c;
 
                   size_t indexW =
                       (j) * S * Cin * Cout +
-                      (i) * Cin * Cout +
-                      c * Cout +
-                      o;
+                          (i) * Cin * Cout +
+                          c * Cout +
+                          o;
 
                   float valI;
                   if((h+j>=0 && h+j<H)&&(w+i>=0 && w+i<W)){
@@ -306,59 +377,6 @@ CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
   }
 
   return outputTn;
-}
-
-void CClassifier::DumpTensor(CTensorPtr<float> inputTn, string nameTag) {
-  if(m_bDumpTensors){
-    string path = globalArgDataPath + "/inference_outputs_cpp/";
-    DumpToNumpyFile<float>(nameTag, inputTn, path);
-  }
-}
-
-void CClassifier::DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag) {
-  if(m_bDumpTensors) {
-    string path = globalArgDataPath + "/inference_outputs_cpp/";
-    DumpToNumpyFile<unsigned>(nameTag, inputTn, path);
-  }
-}
-
-void CClassifier::DumpTensor(CTensorPtr<int> inputTn, string nameTag) {
-  if(m_bDumpTensors) {
-    string path = globalArgDataPath + "/inference_outputs_cpp/";
-    DumpToNumpyFile<int>(nameTag, inputTn, path);
-  }
-}
-
-void CClassifier::Inference() {
-
-  auto conv1 = LayerConv2D(m_oTestSetData, m_vWeights[0], m_vBiases[0], false);
-  DumpTensor(conv1, "0.output.tensor.npy");
-
-  auto conv2 = LayerConv2D(conv1, m_vWeights[1], m_vBiases[1], true);
-  DumpTensor(conv2, "1.output.tensor.npy");
-
-  auto pool1 = LayerMaxPool2D(conv2, {2, 2});
-  DumpTensor(pool1, "2.output.tensor.npy");
-
-  auto conv3 = LayerConv2D(pool1, m_vWeights[2], m_vBiases[2], false);
-  DumpTensor(conv3, "3.output.tensor.npy");
-
-  auto conv4 = LayerConv2D(conv3, m_vWeights[3], m_vBiases[3], true);
-  DumpTensor(conv4, "4.output.tensor.npy");
-
-  auto pool2 = LayerMaxPool2D(conv4, {2, 2});
-  DumpTensor(pool2, "5.output.tensor.npy");
-
-  auto flatten = LayerFlatten(pool2);
-  DumpTensor(flatten, "6.output.tensor.npy");
-
-  auto dense1 = LayerDense(flatten, m_vWeights[4], m_vBiases[4]);
-  auto denseRelu1 = LayerReLU(dense1);
-  DumpTensor(denseRelu1, "7.output.tensor.npy");
-
-  auto dense2 = LayerDense(denseRelu1, m_vWeights[5], m_vBiases[5]);
-  auto denseSoftMax2 = LayerSoftMax(dense2);
-  DumpTensor(denseSoftMax2, "8.output.tensor.npy");
 }
 
 /**

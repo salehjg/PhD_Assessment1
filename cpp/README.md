@@ -4,7 +4,7 @@ Just make sure that you have already run the python script, successfully trained
 the inputs, and the outputs of the model.
 ## Binaries
 This `CMake` project, produces these executable binaries:
-- `Inference`: The main executable to run the model in the inference mode. Use `-h` to see the possible arguments.
+- `Inference`: The main executable to run the model in the inference mode. Use `-h` to see the possible arguments. 
 
 ## Build
 To build it, make sure you have C++14 capable compiler. In CentOS7, you can use this command to enable it:
