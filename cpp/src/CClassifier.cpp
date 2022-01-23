@@ -162,7 +162,7 @@ int CClassifier::Prepare() {
 
 /**
  * Performs Conv2D operation with valid or same padding, fixed stride of 1, and in NHWC format.
- * This kernel does NOT implement the trailing activation, it must be called separately.
+ * This kernel implements the trailing activation (forced relu).
  *
  * @param inputTn The input tensor, row-major.
  * @param weightTn The weight tensor.
@@ -220,28 +220,26 @@ CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
       for (unsigned o=0; o<Cout; o++) { // Cout
         for (unsigned h = 0; h < H; h++) { // H
           for (unsigned w = 0; w < W; w++) { // W
-            for (unsigned c = 0; c < Cin; c++) { // Cin
 
-              float sum = 0;
-              // ---------------------
-              if((h + R -1 < H) && (w + S -1 < W)){
-
+            float sum = 0;
+            // ---------------------
+            if((h + R -1 < H) && (w + S -1 < W)) {
+              for (unsigned c = 0; c < Cin; c++) { // Cin
                 for (unsigned j = 0; (j < R); j++) { // R
                   for (unsigned i = 0; (i < S); i++) { // S
                     sum +=
                         tnI[b * H * W * Cin + (h + j) * W * Cin + (w + i) * Cin + c] *
-                            tnW[(j) * S * Cin * Cout + (i) * Cin * Cout + c * Cout + o]
-                        ;
+                            tnW[(j) * S * Cin * Cout + (i) * Cin * Cout + c * Cout + o];
                   }
                 }
-
-                float activated = sum + tnB[o];
-                if(activated<0) activated = 0;
-                tnO[b*Hout*Wout*Cout + h*Wout*Cout + w*Cout + o] = activated;
               }
-              // ---------------------
 
+              // ---------------------
+              float activated = sum + tnB[o];
+              if (activated < 0) activated = 0;
+              tnO[b * Hout * Wout * Cout + h * Wout * Cout + w * Cout + o] = activated;
             }
+            // ---------------------
           }
         }
       }
@@ -335,6 +333,9 @@ void CClassifier::Inference(){
 
   auto conv1 = LayerConv2D(m_oTestSetData, m_vWeights[0], m_vBiases[0], false);
   DumpTensor(conv1, "0.output.tensor.npy");
+
+  auto conv2 = LayerConv2D(conv1, m_vWeights[1], m_vBiases[1], true);
+  DumpTensor(conv2, "1.output.tensor.npy");
 
 
 }
