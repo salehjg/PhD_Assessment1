@@ -25,8 +25,5 @@ def compare_existing_cpp_output_with_gold():
         print("dif sum: ", dif_sum)
         print("dif sum abs: ", dif_sum_abs)
 
-        print(gold[0,0,0:32,0])
-        print(test[0,0,0:32,0])
-
 
 compare_existing_cpp_output_with_gold()

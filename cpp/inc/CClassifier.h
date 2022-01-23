@@ -23,6 +23,9 @@ class CClassifier {
   bool CheckValidityOfNumpyData();
   int PreloadAll();
   CTensorPtr<float> LayerConv2D(CTensorPtr<float> inputTn, CTensorPtr<float> weightTn, CTensorPtr<float> biasTn, bool isValidPadding);
+  CTensorPtr<float> LayerMaxPool2D(CTensorPtr<float> inputTn, const vector<unsigned> &poolSize);
+  CTensorPtr<float> LayerFlatten(CTensorPtr<float> inputTn);
+
 
   void DumpTensor(CTensorPtr<float> inputTn, string nameTag);
   void DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag);

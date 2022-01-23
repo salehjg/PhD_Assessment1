@@ -329,7 +329,7 @@ void CClassifier::DumpTensor(CTensorPtr<int> inputTn, string nameTag) {
   }
 }
 
-void CClassifier::Inference(){
+void CClassifier::Inference() {
 
   auto conv1 = LayerConv2D(m_oTestSetData, m_vWeights[0], m_vBiases[0], false);
   DumpTensor(conv1, "0.output.tensor.npy");
@@ -337,7 +337,100 @@ void CClassifier::Inference(){
   auto conv2 = LayerConv2D(conv1, m_vWeights[1], m_vBiases[1], true);
   DumpTensor(conv2, "1.output.tensor.npy");
 
+  auto pool1 = LayerMaxPool2D(conv2, {2, 2});
+  DumpTensor(pool1, "2.output.tensor.npy");
 
+  auto conv3 = LayerConv2D(pool1, m_vWeights[2], m_vBiases[2], false);
+  DumpTensor(conv3, "3.output.tensor.npy");
+
+  auto conv4 = LayerConv2D(conv3, m_vWeights[3], m_vBiases[3], true);
+  DumpTensor(conv4, "4.output.tensor.npy");
+
+  auto pool2 = LayerMaxPool2D(conv4, {2, 2});
+  DumpTensor(pool2, "5.output.tensor.npy");
+
+  auto flatten = LayerFlatten(pool2);
+  DumpTensor(flatten, "6.output.tensor.npy");
+}
+
+/**
+ * 2D MaxPooling with forced `valid` padding.
+ * @param inputTn The input tensor in `BHWC` format
+ * @param poolSize The pool size in `HW` format, for example {2,2}
+ * @return The output tensor
+ */
+CTensorPtr<float> CClassifier::LayerMaxPool2D(CTensorPtr<float> inputTn, const vector<unsigned> &poolSize) {
+  CTensorPtr<float> outputTn;
+  const auto shapeI = inputTn->GetShape(); // N,H,W,Cin
+
+  ConditionCheck(inputTn->GetRank()==4, "The input tensor with batch size of 1 must be expanded dim at axis 0.")
+  ConditionCheck(poolSize.size()==2, "The pool size for 2D max pooling must have two elements.")
+
+  unsigned B, H, W, Cin, R, S, Hout, Wout;
+
+  B = shapeI[0];
+  H = shapeI[1];
+  W = shapeI[2];
+  Cin = shapeI[3];
+  R = poolSize[0];
+  S = poolSize[1];
+
+  Hout = ceil(((float)(H-R+1))/((float)R)); // stride = R
+  Wout = ceil(((float)(W-S+1))/((float)S)); // stride = S
+
+  outputTn = CTensorPtr<float>(new CTensor<float>({B, Hout, Wout, Cin}));
+
+  const float* tnI = inputTn->Get();
+  float* tnO = outputTn->Get();
+
+  for(unsigned b=0; b<B; b++){
+    for(unsigned c=0; c<Cin; c++){
+      for(unsigned h=0; h<H; h+=R){
+        for(unsigned w=0; w<W; w+=S){
+
+          if( (h+R>=0 && h+R-1<H) && (w+S>=0 && w+S-1<W) ){
+            float maxVal = -1 * std::numeric_limits<float>::infinity();
+
+            for(unsigned j=0; j<R; j++){
+              for(unsigned i=0; i<S; i++){
+                size_t indexI =
+                        b*H*W*Cin+
+                        (h+j)*W*Cin+
+                        (w+i)*Cin+
+                        c;
+                if(tnI[indexI]>maxVal) {
+                  maxVal = tnI[indexI];
+                }
+              }
+            }
+
+            size_t indexO =
+                  b*Hout*Wout*Cin+
+                  (h/R)*Wout*Cin+
+                  (w/S)*Cin+
+                  c;
+            tnO[indexO] = maxVal;
+          }
+
+        }
+      }
+    }
+  }
+
+  return outputTn;
+}
+CTensorPtr<float> CClassifier::LayerFlatten(CTensorPtr<float> inputTn) {
+  const auto oldShape = inputTn->GetShape();
+  unsigned flattenShape = std::accumulate(
+      std::begin(oldShape)+1, // we only want to flatten the `HWC` axes, not the `B` axis
+      std::end(oldShape),
+      1,
+      std::multiplies<unsigned>()
+  );
+
+  CTensorPtr<float> outputTn =
+      CTensorPtr<float>(new CTensor<float>({oldShape[0], flattenShape}, inputTn->Get()));
+  return outputTn;
 }
 
 
