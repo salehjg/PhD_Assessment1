@@ -13,7 +13,6 @@ using namespace std;
 
 spdlog::logger *logger;
 string globalArgDataPath;
-unsigned globalBatchsize;
 bool globalDumpTensors=false;
 
 void Handler(int sig) {
@@ -49,7 +48,6 @@ void SetupModules(int argc, const char* argv[]){
   ArgumentParser parser("Inference");
 
   parser.add_argument("-d", "--data", "Dump directory", true);
-  parser.add_argument("-b", "--batchsize", "Batch-size", false);
   parser.add_argument(
       "-k",
       "--dumptensors",
@@ -95,13 +93,6 @@ void SetupModules(int argc, const char* argv[]){
       logger->set_level(spdlog::level::off);
     }
   }
-
-  if(parser.exists("b")) {
-    globalBatchsize = parser.get<unsigned>("b");
-  }else{
-    globalBatchsize = 100;
-  }
-  SPDLOG_LOGGER_INFO(logger,"Batch-size: {}", globalBatchsize);
 
   if(parser.exists("d")) {
     globalArgDataPath = parser.get<string>("d");

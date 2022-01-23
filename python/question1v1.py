@@ -123,26 +123,26 @@ class Question1Version1:
         self.save_item(self.w, 7, 'dense_1', npy_dir)
         self.save_item(self.w, 8, 'dense_2', npy_dir)
 
-    def export_input_data(self):
+    def export_input_data(self, batch_size):
         npy_dir = self.BASE_DIR
         np.save(
             npy_dir + 'input_test_data.npy',
-            np.array(self.x_test, dtype=np.float32)
+            np.array(self.x_test[0:batch_size, :, :, :], dtype=np.float32)
         )
         np.save(
             npy_dir + 'input_test_label.npy',
-            np.array(self.y_test, dtype=np.float32)
+            np.array(self.y_test[0:batch_size, :], dtype=np.float32)
         )
 
     def run_inference(self, batch_size, export_intermediate_tensors=False):
-        method1_results = self.model.predict(self.x_test, batch_size=batch_size)
+        method1_results = self.model.predict(self.x_test[0:batch_size, :, :, :], batch_size=batch_size)
 
         if export_intermediate_tensors:
             inp = self.model.input  # input placeholder
             out = [layer.output for layer in self.model.layers]  # all layer outputs
             get_outputs = K.function([inp, K.learning_phase()], out)
 
-            layer_outs = get_outputs([self.x_test, 1.])
+            layer_outs = get_outputs([self.x_test[0:batch_size, :, :, :], 1.])
 
             if np.sum(method1_results - layer_outs[-1]) > 1e-4:
                 print(
@@ -159,6 +159,7 @@ class Question1Version1:
 
 if __name__ == "__main__":
     q1 = Question1Version1()
+    target_batchsize = 50
 
     if len(sys.argv) == 2:
         if sys.argv[1] == '-t':  # train
@@ -167,10 +168,10 @@ if __name__ == "__main__":
         else:
             if sys.argv[1] == '-e':  # export all
                 # export the input tensors of the test-set (data and label).
-                q1.export_input_data()
+                q1.export_input_data(target_batchsize)
 
                 # inference with intermediate tensor dumps (the outputs of each layer).
-                q1.run_inference(batch_size=100, export_intermediate_tensors=True)
+                q1.run_inference(batch_size=target_batchsize, export_intermediate_tensors=True)
 
                 # extract the weights from the previously saved keras weights file (h5) and then save the extracted weights in numpy format.
                 q1.convert_weights_npy_v1()
@@ -178,7 +179,7 @@ if __name__ == "__main__":
 
             else:
                 if sys.argv[1] == '-i':
-                    q1.run_inference(batch_size=100, export_intermediate_tensors=False)
+                    q1.run_inference(batch_size=target_batchsize, export_intermediate_tensors=False)
     else:
         print(
             "Wrong arguments. "

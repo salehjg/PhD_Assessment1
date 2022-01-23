@@ -12,8 +12,9 @@ using namespace std;
 
 class CClassifier {
  public:
-  CClassifier(string &dataDir, int batchSize, bool dumpTensors);
+  CClassifier(string &dataDir, bool dumpTensors);
   int Prepare();
+  void Inference();
 
  protected:
   int PreloadWeights();
@@ -21,11 +22,15 @@ class CClassifier {
   int PreloadTestSet();
   bool CheckValidityOfNumpyData();
   int PreloadAll();
+  CTensorPtr<float> LayerConv2D(CTensorPtr<float> inputTn, CTensorPtr<float> weightTn, CTensorPtr<float> biasTn, bool isValidPadding);
+
+  void DumpTensor(CTensorPtr<float> inputTn, string nameTag);
+  void DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag);
+  void DumpTensor(CTensorPtr<int> inputTn, string nameTag);
 
  private:
   string m_strDataDir;
   bool m_bDumpTensors;
-  int m_iBatchSize;
   vector<CTensorPtr<float>> m_vWeights;
   vector<CTensorPtr<float>> m_vBiases;
   CTensorPtr<float> m_oTestSetData;
@@ -33,5 +38,14 @@ class CClassifier {
   CTensorPtr<float> m_oConfirmation;
   std::vector<cnpy::NpyArray> m_vNumpyBuff;
 
+  template <typename T>
+  void DumpToNumpyFile(std::string npyFileName, CTensorPtr<T> inputTn, std::string npyDumpDir);
 };
+
+template<typename T>
+void CClassifier::DumpToNumpyFile(std::string npyFileName, CTensorPtr<T> inputTn, std::string npyDumpDir) {
+  auto shape = inputTn->GetShape();
+  std::vector<unsigned long> _shape(shape.begin(), shape.end());
+  cnpy::npy_save<T>(npyDumpDir+npyFileName, inputTn->Get(), _shape, "w");
+}
 

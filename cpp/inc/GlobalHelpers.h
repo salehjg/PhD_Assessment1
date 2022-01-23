@@ -14,7 +14,6 @@
 
 extern spdlog::logger *logger;
 extern std::string globalArgDataPath;
-extern unsigned globalBatchsize;
 extern bool globalDumpTensors;
 
 extern void SetupModules(int argc, const char* argv[]);

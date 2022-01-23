@@ -3,6 +3,7 @@
 //
 
 #include "CClassifier.h"
+#include <cmath>
 
 /**
  * Constructor, it does not do any preparation, please use Prepare().
@@ -10,9 +11,8 @@
  * @param batchSize Batch-size of the inference run
  * @param dumpTensors true: dump tensors, false: dont dump any tensors
  */
-CClassifier::CClassifier(string &dataDir, int batchSize, bool dumpTensors) {
+CClassifier::CClassifier(string &dataDir, bool dumpTensors) {
   m_strDataDir = dataDir + "/";
-  m_iBatchSize = batchSize;
   m_bDumpTensors = dumpTensors;
 }
 
@@ -159,4 +159,176 @@ int CClassifier::Prepare() {
   if(!CheckValidityOfNumpyData()) return 2;
   return 0;
 }
+
+/**
+ * Performs Conv2D operation with valid or same padding, fixed stride of 1, and in NHWC format.
+ * This kernel does NOT implement the trailing activation, it must be called separately.
+ *
+ * @param inputTn The input tensor, row-major.
+ * @param weightTn The weight tensor.
+ * @param biasTn The bias tensor, row-major.
+ * @param isValidPadding True: valid-padding, False: same-padding
+ * @return resulted tensor
+ */
+CTensorPtr<float> CClassifier::LayerConv2D(CTensorPtr<float> inputTn,
+                                            CTensorPtr<float> weightTn,
+                                            CTensorPtr<float> biasTn,
+                                            bool isValidPadding) {
+  CTensorPtr<float> outputTn;
+  const auto shapeI = inputTn->GetShape(); // N,H,W,Cin
+  const auto shapeW = weightTn->GetShape(); // R,S,Cin,Cout
+  const auto shapeB = biasTn->GetShape(); // Cout
+
+  ConditionCheck(biasTn->GetRank()==1,"The bias tensor should be of rank 1.");
+  ConditionCheck(shapeB[0] == shapeW[3],"The shapes of the bias tensor and the weight tensor must match at the last axis.");
+  ConditionCheck(inputTn->GetRank()==4, "The input tensor with batch size of 1 must be expanded dim at axis 0.")
+  ConditionCheck(weightTn->GetRank()==4, "The weight tensor with size of 1 in any of its axes must be expanded dim at the respective axes.")
+
+  unsigned B, H, W, Hout, Wout, Cin, Cout, R, S, padLenH, padLenW;
+
+  B = shapeI[0];
+  Cin = shapeI[3];
+  Cout = shapeW[3];
+  H = shapeI[1];
+  W = shapeI[2];
+  R = shapeW[0]; // for H
+  S = shapeW[1]; // for W
+
+  if(isValidPadding){
+    // Forced stride of 1 for i and j.
+    Hout = shapeI[1] - shapeW[0] + 1;
+    Wout = shapeI[2] - shapeW[1] + 1;
+    outputTn = CTensorPtr<float>(new CTensor<float>({shapeI[0], Hout, Wout, shapeW[3]}));
+    padLenH = padLenW = 0;
+  }else{
+    // Forced stride of 1 for i and j.
+    Hout = shapeI[1];
+    Wout = shapeI[2];
+    outputTn = CTensorPtr<float>(new CTensor<float>({shapeI[0], Hout, Wout, shapeW[3]}));
+    padLenH = (R - 1);
+    padLenW = (S - 1);
+  }
+
+  const auto tnI = inputTn->Get();
+  const auto tnW = weightTn->Get();
+  const auto tnB = biasTn->Get();
+  const auto tnO = outputTn->Get();
+
+  if(isValidPadding){
+
+    for (unsigned b=0; b<B; b++) { // Batch
+      for (unsigned o=0; o<Cout; o++) { // Cout
+        for (unsigned h = 0; h < H; h++) { // H
+          for (unsigned w = 0; w < W; w++) { // W
+            for (unsigned c = 0; c < Cin; c++) { // Cin
+
+              float sum = 0;
+              // ---------------------
+              if((h + R -1 < H) && (w + S -1 < W)){
+
+                for (unsigned j = 0; (j < R); j++) { // R
+                  for (unsigned i = 0; (i < S); i++) { // S
+                    sum +=
+                        tnI[b * H * W * Cin + (h + j) * W * Cin + (w + i) * Cin + c] *
+                            tnW[(j) * S * Cin * Cout + (i) * Cin * Cout + c * Cout + o]
+                        ;
+                  }
+                }
+
+                float activated = sum + tnB[o];
+                if(activated<0) activated = 0;
+                tnO[b*Hout*Wout*Cout + h*Wout*Cout + w*Cout + o] = activated;
+              }
+              // ---------------------
+
+            }
+          }
+        }
+      }
+    }
+
+  }else{
+    int padStartH, padEndH, padStartW, padEndW, boundStartH, boundEndH, boundStartW, boundEndW;
+
+    padStartH = (int)floor((float)padLenH/2.0f);
+    padEndH = (int)ceil((float)padLenH/2.0f);
+    padStartW = (int)floor((float)padLenW/2.0f);
+    padEndW = (int)ceil((float)padLenW/2.0f);
+
+    boundStartH = -1 * padStartH;
+    boundEndH = H - (R-(padEndH+1));
+
+    boundStartW = -1 * padStartW;
+    boundEndW = W - (S-(padEndW+1));
+
+    for (int b=0; b<B; b++) { // Batch
+      for (int o=0; o<Cout; o++) { // Cout
+        for (int h = boundStartH; h < boundEndH; h++) { // H
+          for (int w = boundStartW; w < boundEndW; w++) { // W
+            for (int c = 0; c < Cin; c++) { // Cin
+
+              float sum = 0;
+              // ---------------------
+
+              for (unsigned j = 0; (j < R); j++) { // R
+                for (unsigned i = 0; (i < S); i++) { // S
+
+                  size_t indexI = b * H * W * Cin + (h + j) * W * Cin + (w + i) * Cin + c;
+                  size_t indexW = (j) * S * Cin * Cout + (i) * Cin * Cout + c * Cout + o;
+
+                  float valI;
+                  if((h+j>=0 && h+j<H)&&(w+i>=0 && w+i<W)){valI = tnI[indexI];}else{valI = 0;}
+
+                  sum += valI * tnW[indexW];
+                }
+              }
+
+              size_t indexO = b*Hout*Wout*Cout + (h+padStartH)*Wout*Cout + (w+padStartW)*Cout + o;
+              float activated = sum + tnB[o];
+              if(activated<0) activated = 0;
+              tnO[indexO] = activated;
+
+              // ---------------------
+
+            }
+          }
+        }
+      }
+    }
+
+  }
+
+  return outputTn;
+}
+
+void CClassifier::DumpTensor(CTensorPtr<float> inputTn, string nameTag) {
+  if(m_bDumpTensors){
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<float>(nameTag, inputTn, path);
+  }
+}
+
+void CClassifier::DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag) {
+  if(m_bDumpTensors) {
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<unsigned>(nameTag, inputTn, path);
+  }
+}
+
+void CClassifier::DumpTensor(CTensorPtr<int> inputTn, string nameTag) {
+  if(m_bDumpTensors) {
+    string path = globalArgDataPath + "/inference_outputs_cpp/";
+    DumpToNumpyFile<int>(nameTag, inputTn, path);
+  }
+}
+
+void CClassifier::Inference(){
+
+  auto conv1 = LayerConv2D(m_oTestSetData, m_vWeights[0], m_vBiases[0], false);
+  DumpTensor(conv1, "0.output.tensor.npy");
+
+
+}
+
+
 
