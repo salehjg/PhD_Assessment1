@@ -351,6 +351,10 @@ void CClassifier::Inference() {
 
   auto flatten = LayerFlatten(pool2);
   DumpTensor(flatten, "6.output.tensor.npy");
+
+  auto dense1 = LayerDense(flatten, m_vWeights[4], m_vBiases[4]);
+  auto denseRelu1 = LayerReLU(dense1);
+  DumpTensor(denseRelu1, "7.output.tensor.npy");
 }
 
 /**
@@ -419,7 +423,14 @@ CTensorPtr<float> CClassifier::LayerMaxPool2D(CTensorPtr<float> inputTn, const v
 
   return outputTn;
 }
+
+/**
+ * Implements `Flatten` funtionality, keeps the batch axis in tact.
+ * @param inputTn The input tensor
+ * @return The output tensor
+ */
 CTensorPtr<float> CClassifier::LayerFlatten(CTensorPtr<float> inputTn) {
+  ConditionCheck(inputTn->GetRank()>=2, "The rank of the input tensor should be >=2.")
   const auto oldShape = inputTn->GetShape();
   unsigned flattenShape = std::accumulate(
       std::begin(oldShape)+1, // we only want to flatten the `HWC` axes, not the `B` axis
@@ -430,6 +441,69 @@ CTensorPtr<float> CClassifier::LayerFlatten(CTensorPtr<float> inputTn) {
 
   CTensorPtr<float> outputTn =
       CTensorPtr<float>(new CTensor<float>({oldShape[0], flattenShape}, inputTn->Get()));
+  return outputTn;
+}
+
+/**
+ * Implements the `Dense` layer without the activation functionality.
+ * @param inputTn The input tensor
+ * @param weightTn The weight tensor
+ * @param biasTn The bias tensor
+ * @return The output tensor
+ */
+CTensorPtr<float> CClassifier::LayerDense(CTensorPtr<float> inputTn,
+                                          CTensorPtr<float> weightTn,
+                                          CTensorPtr<float> biasTn) {
+  auto shape1 = inputTn->GetShape();
+  auto shape2 = weightTn->GetShape();
+  auto matrixH1  = shape1[0];
+  auto matrixW1  = shape1[1];
+  auto matrixH2  = shape2[0];
+  auto matrixW2  = shape2[1];
+  ConditionCheck(matrixW1==matrixH2, "Unequal inputTn[1] and weightTn[0].");
+  CTensorPtr<float> outputTn(new CTensor<float>({matrixH1, matrixW2}));
+
+  size_t indexS1, indexS2, indexD;
+  const float *tnI = inputTn->Get();
+  const float *tnW = weightTn->Get();
+  const float *tnB = biasTn->Get();
+  float *tnO = outputTn->Get();
+
+  // for element of output of matrixH1 x matrixW2
+  for(unsigned j=0;j<matrixH1;j++){
+    for(unsigned i=0;i<matrixW2;i++){
+      //mat1: select row j
+      //mat2: select col i
+      float sum=0;
+      for(unsigned mat1_x=0;mat1_x<matrixW1;mat1_x++)
+      {
+        indexS1 = j*matrixW1 + mat1_x;
+        indexS2 = mat1_x*matrixW2 + i;
+        sum += tnI[indexS1] * tnW[indexS2];
+      }
+      // for element of output of matrixH1 x matrixW2
+      indexD = j*matrixW2 + i;
+      tnO[indexD] = sum + tnB[i];
+    }
+  }
+
+  return outputTn;
+}
+
+/**
+ * Implements `ReLU`
+ * @param inputTn The input tensor of rank 1 and greater.
+ * @return The output tensor.
+ */
+CTensorPtr<float> CClassifier::LayerReLU(CTensorPtr<float> inputTn) {
+  ConditionCheck(inputTn->GetLen()!=0, "The input tensor is of length zero!");
+  CTensorPtr<float> outputTn(new CTensor<float>(inputTn->GetShape()));
+  const size_t len = inputTn->GetLen();
+  const float *tnI = inputTn->Get();
+  float *tnO = outputTn->Get();
+  for(size_t i=0;i<len;i++){
+    tnO[i] = (tnI[i]>0) ? tnI[i] : 0;
+  }
   return outputTn;
 }
 

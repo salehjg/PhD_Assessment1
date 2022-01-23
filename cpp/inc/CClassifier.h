@@ -25,7 +25,9 @@ class CClassifier {
   CTensorPtr<float> LayerConv2D(CTensorPtr<float> inputTn, CTensorPtr<float> weightTn, CTensorPtr<float> biasTn, bool isValidPadding);
   CTensorPtr<float> LayerMaxPool2D(CTensorPtr<float> inputTn, const vector<unsigned> &poolSize);
   CTensorPtr<float> LayerFlatten(CTensorPtr<float> inputTn);
-
+  CTensorPtr<float> LayerDense(CTensorPtr<float> inputTn, CTensorPtr<float> weightTn, CTensorPtr<float> biasTn);
+  CTensorPtr<float> LayerReLU(CTensorPtr<float> inputTn);
+  CTensorPtr<float> LayerMatMul(CTensorPtr<float> inputTn1, CTensorPtr<float> inputTn2);
 
   void DumpTensor(CTensorPtr<float> inputTn, string nameTag);
   void DumpTensor(CTensorPtr<unsigned> inputTn, string nameTag);
@@ -43,6 +45,7 @@ class CClassifier {
 
   template <typename T>
   void DumpToNumpyFile(std::string npyFileName, CTensorPtr<T> inputTn, std::string npyDumpDir);
+
 };
 
 template<typename T>
