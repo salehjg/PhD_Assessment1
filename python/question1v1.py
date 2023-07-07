@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Input
-from keras import Sequential
+from keras import Sequential, Model
 import tensorflow as tf
 from keras.utils import to_categorical
 import h5py as h5
@@ -27,19 +27,19 @@ class Question1Version1:
     def get_model(self):
         model = Sequential()
         # 0
-        model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(32, 32, 3)))
+        model.add(Conv2D(32, (3, 3), name="conv2d_1", activation='relu', padding='same', input_shape=(32, 32, 3)))
 
         # 1
-        model.add(Conv2D(32, (3, 3), activation='relu', padding='valid'))
+        model.add(Conv2D(32, (3, 3), name="conv2d_2", activation='relu', padding='valid'))
 
         # 2
         model.add(MaxPooling2D(pool_size=(2, 2)))
 
         # 3
-        model.add(Conv2D(64, (3, 3), activation='relu', padding='same'))
+        model.add(Conv2D(64, (3, 3), name="conv2d_3", activation='relu', padding='same'))
 
         # 4
-        model.add(Conv2D(64, (3, 3), activation='relu', padding='valid'))
+        model.add(Conv2D(64, (3, 3), name="conv2d_4", activation='relu', padding='valid'))
 
         # 5
         model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -48,10 +48,10 @@ class Question1Version1:
         model.add(Flatten())
 
         # 7
-        model.add(Dense(512, activation='relu'))
+        model.add(Dense(512, name="dense_1", activation='relu'))
 
         # 8
-        model.add(Dense(10, activation='softmax'))
+        model.add(Dense(10, name="dense_2", activation='softmax'))
 
         model.summary()
         return model
@@ -140,13 +140,10 @@ class Question1Version1:
     def run_inference(self, batch_size, export_intermediate_tensors=False):
         method1_results = self.model.predict(self.x_test[0:batch_size, :, :, :], batch_size=batch_size)
 
-
-
         if export_intermediate_tensors:
-            inp = self.model.input  # input placeholder
-            out = [layer.output for layer in self.model.layers]  # all layer outputs
-            get_outputs = K.function([inp, K.learning_phase()], out)
-            layer_outs = get_outputs([self.x_test[0:batch_size, :, :, :], 1.])
+            outs = [layer.output for layer in self.model.layers]
+            partial_model = Model(inputs=[self.model.input], outputs=outs)
+            layer_outs = partial_model([self.x_test[0:batch_size, :, :, :]], training=False)
 
             if np.sum(method1_results - layer_outs[-1]) > 1e-4:
                 print(

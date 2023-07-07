@@ -17,6 +17,8 @@ numpy
 C++ 14 capable compiler (G++ 7+)
 ```
 
+Note that for `ArchLinux` and `GTX1070m` use the package called `extra/tensorflow-cuda`, not `extra/tensorflow-opt-cuda` since it is incompatible with 1070.
+
 
 Then clone the repository with the sub-modules with:
 ```
